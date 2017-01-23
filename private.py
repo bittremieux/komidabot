@@ -1,0 +1,2 @@
+# Slack webhook
+webhook = None
