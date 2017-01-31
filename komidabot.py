@@ -109,11 +109,13 @@ def post_to_slack(menu, url):
     Raises:
         `requests.HTTPError`: The Slack message could not be posted.
     """
-    message = '*LUNCH!*\n:tea: {}\n:tomato: {}\n:poultry_leg: {}\n:meat_on_bone: {}\n:spaghetti: {}\n' \
-              '<{}|Check the menu here.> Mistakes, comments, suggestions, ...? Please contact @wout.' \
-        .format(*menu, url)
+    message = ':tea: {}\n:tomato: {}\n:poultry_leg: {}\n:meat_on_bone: {}\n:spaghetti: {}\n' \
+              'Mistakes, comments, suggestions, ...? Please contact @wout.'.format(*menu)
 
-    r_slack = requests.post(private.webhook, json={'username': 'lunchbot', 'icon_emoji': ':hodor:', 'text': message})
+    r_slack = requests.post(private.webhook, json={'username': 'komidabot', 'icon_emoji': ':fork_and_knife:',
+                                                   'text': '*LUNCH!*',
+                                                   'attachments': [{'title': 'Menu komida Middelheim',
+                                                                    'title_link': url, 'text': message}]})
     r_slack.raise_for_status()    # check whether the message was correctly posted
 
 
