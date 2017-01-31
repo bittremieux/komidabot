@@ -5,6 +5,7 @@ import logging
 import tempfile
 import urllib.parse
 
+import dateutil.parser
 import lxml.html
 import pdfquery
 import requests
@@ -87,7 +88,7 @@ def get_menu_today(fp):
     # check whether this is this week's menu
     locale.setlocale(locale.LC_ALL, 'nl_BE')  # parse the date in Dutch
     week = pdf.pq('LTTextLineHorizontal:in_bbox("{},{},{},{}")'.format(*bboxes['date'])).text()
-    end_date = datetime.datetime.strptime(week[week.find('tot') + 4:], '%d %B %Y') + datetime.timedelta(days=1)
+    end_date = dateutil.parser.parse(week[week.find('tot') + 4:]) + datetime.timedelta(days=1)
     if (end_date - datetime.datetime.today()).days > 4:
         raise ValueError('Incorrect date; menu for: {}'.format(week))
 
