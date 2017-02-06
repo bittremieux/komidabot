@@ -97,6 +97,9 @@ def get_menu_today(fp):
     menu = [pdf.pq('LTTextLineHorizontal:in_bbox("{},{},{},{}")'.format(*bbox)).text()
             for bbox in itertools.chain(bboxes[datetime.datetime.today().weekday()], bboxes['all'])]
 
+    if all(not m for m in menu):
+        raise ValueError("Today's menu is empty")
+
     return menu
 
 
