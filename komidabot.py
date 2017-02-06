@@ -5,7 +5,7 @@ import logging
 import tempfile
 import urllib.parse
 
-import dateutil.parser
+import dateparser
 import lxml.html
 import pdfquery
 import requests
@@ -34,6 +34,7 @@ def get_menu_url():
 
     return urllib.parse.urljoin('https://www.uantwerpen.be/', url)
 
+
 def download_pdf(url):
     """
     Download the given url and save the content to a temporary file.
@@ -56,6 +57,7 @@ def download_pdf(url):
     fp.seek(0)
 
     return fp
+
 
 def get_menu_today(fp):
     """
@@ -86,9 +88,8 @@ def get_menu_today(fp):
     pdf.load(0)
 
     # check whether this is this week's menu
-    locale.setlocale(locale.LC_ALL, 'nl_BE')  # parse the date in Dutch
     week = pdf.pq('LTTextLineHorizontal:in_bbox("{},{},{},{}")'.format(*bboxes['date'])).text()
-    end_date = dateutil.parser.parse(week[week.find('tot') + 4:]) + datetime.timedelta(days=1)
+    end_date = dateparser.parse(week[max(week.find('tot'), week.find('tem')) + 4:], languages=['nl']) + datetime.timedelta(days=1)
     if (end_date - datetime.datetime.today()).days > 4:
         raise ValueError('Incorrect date; menu for: {}'.format(week))
 
@@ -97,6 +98,7 @@ def get_menu_today(fp):
             for bbox in itertools.chain(bboxes[datetime.datetime.today().weekday()], bboxes['all'])]
 
     return menu
+
 
 def post_to_slack(menu, url):
     """
