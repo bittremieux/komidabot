@@ -13,24 +13,30 @@ import requests
 import private
 
 
-def get_menu_url():
+def get_menu_url(campus):
     """
     Parse the komida 'Weekmenu' page to find the url to the latest pdf menu for komida Middelheim.
 
+    Args:
+        campus: The campus for which the pdf menu has to be retrieved. Can be either `cmi` for Campus Middelheim, `cde`
+                for Campus Drie Eiken, `cgb` for Campus Groenenborger, or `cst` for the City Campus.
+
     Returns:
-        The url of the komida Middelheim menu.
+        The menu url of the specified campus.
 
     Raises:
         `requests.HTTPError`: The 'Weekmenu' page could not be retrieved.
     """
     base_url = 'https://www.uantwerpen.be/nl/campusleven/eten/weekmenu/'
+    campus_id = {'cmi': 'Campus Middelheim', 'cde': 'Campus Drie Eiken',
+                 'cgb': 'Campus Groenenborger', 'cst': 'Stadscampus'}
 
-    # find the menu for komida Middelheim
+    # find the menu for the specified campus
     r_komida = requests.get(base_url)
     r_komida.raise_for_status()
 
     page = lxml.html.fromstring(r_komida.content)
-    url = page.xpath("//h2[contains(text(), 'Campus Middelheim')]/following::p[1]/a/@href")[0]
+    url = page.xpath('//h2[contains(text(), {})]/following::p[1]/a/@href'.format(campus_id[campus]))[0]
 
     return urllib.parse.urljoin('https://www.uantwerpen.be/', url)
 
@@ -59,7 +65,7 @@ def download_pdf(url):
     return fp
 
 
-def get_menu_today(fp):
+def get_menu(fp, date):
     """
     Retrieve the menu from the formatted pdf.
 
@@ -67,6 +73,7 @@ def get_menu_today(fp):
 
     Args:
         fp: File pointer to the menu pdf.
+        date: The date for which to retrieve the menu.
 
     Returns:
         A list of individual items on today's menu (both daily and weekly items).
@@ -87,15 +94,15 @@ def get_menu_today(fp):
     pdf = pdfquery.PDFQuery(fp)
     pdf.load(0)
 
-    # check whether this is this week's menu
+    # check whether the menu is applicable for the given date
     week = pdf.pq('LTTextLineHorizontal:in_bbox("{},{},{},{}")'.format(*bboxes['date'])).text()
     end_date = dateparser.parse(week[max(week.find('tot'), week.find('tem')) + 4:], languages=['nl']) + datetime.timedelta(days=1)
-    if (end_date - datetime.datetime.today()).days > 4:
+    if (end_date - date).days > 4:
         raise ValueError('Incorrect date; menu for: {}'.format(week))
 
-    # extract today's menu (including the weekly fixed menu items)
+    # extract the given date's menu (including the weekly fixed menu items)
     menu = [pdf.pq('LTTextLineHorizontal:in_bbox("{},{},{},{}")'.format(*bbox)).text()
-            for bbox in itertools.chain(bboxes[datetime.datetime.today().weekday()], bboxes['all'])]
+            for bbox in itertools.chain(bboxes[date.weekday()], bboxes['all'])]
 
     if all(not m for m in menu):
         raise ValueError("Today's menu is empty")
@@ -132,9 +139,9 @@ if __name__ == '__main__':
     try:
         # only post the menu on weekdays
         if datetime.datetime.today().weekday() < 5:
-            menu_url = get_menu_url()
+            menu_url = get_menu_url('cmi')
             with download_pdf(menu_url) as f_pdf:
-                menu_list = get_menu_today(f_pdf)
+                menu_list = get_menu(f_pdf, datetime.datetime.today())
                 post_to_slack(menu_list, menu_url)
 
     except (requests.HTTPError, ValueError) as e:
