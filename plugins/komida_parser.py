@@ -1,5 +1,6 @@
 import datetime
 import logging
+import os
 import re
 import sqlite3
 import tempfile
@@ -9,6 +10,7 @@ import dateparser
 import lxml.html
 import pdfquery
 import requests
+from rtmbot.core import Job
 
 
 def get_menu_url(campus):
@@ -201,3 +203,17 @@ def init_database():
 
     conn.commit()
     conn.close()
+
+
+class KomidaUpdate(Job):
+
+    def run(self, slack_client):
+        # create the database if needed
+        if not os.path.exists('menu.db'):
+            init_database()
+
+        # update the menu
+        update_menus()
+
+        # expects an iterable
+        return []

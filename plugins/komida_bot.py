@@ -7,6 +7,8 @@ import sqlite3
 
 from rtmbot.core import Plugin
 
+from .komida_parser import KomidaUpdate
+
 
 def get_campus(text):
     campus_options = [('cde', ['cde', 'drie eiken']), ('cgb', ['cgb', 'groenenborger']),
@@ -123,3 +125,7 @@ class KomidaPlugin(Plugin):
         # check the error status of this message but don't try to resend
         if not response['ok']:
             logging.error('Failed to post to Slack: {}'.format(response['error']))
+
+    def register_jobs(self):
+        # schedule an update of the menu every hour
+        self.jobs.append(KomidaUpdate(3600))
