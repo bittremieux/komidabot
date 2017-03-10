@@ -2,6 +2,7 @@ import collections
 import datetime
 import itertools
 import logging
+import random
 import re
 import sqlite3
 
@@ -73,6 +74,9 @@ def format_menu(menu):
 
 class KomidaPlugin(Plugin):
 
+    # job to update the menus
+    update = KomidaUpdate(3600)
+
     def process_message(self, data):
         """
         TODO
@@ -98,16 +102,36 @@ class KomidaPlugin(Plugin):
 
         # get the requested menus
         menus = get_menu(campuses, dates)
+        # force a menu update if nothing could be found initially
+        if len(menus) == 0:
+            try:
+                logging.debug('No menu found, updating...')
 
+                response = self.slack_client.api_call('chat.postMessage', channel=data['channel'],
+                                                      text="I don't have the menu for {} on {}. Let me see if I can find it online...".format(
+                                                          ', '.join(campuses).upper(), ', '.join([d.strftime('%A %d %B') for d in dates])),
+                                                      username='komidabot', icon_emoji=':fork_and_knife:')
+                if not response['ok']:
+                    self.process_error(data['channel'], response['error'])
+
+                self.update.run(self.slack_client)
+            except Exception as e:
+                logging.exception('Problem while updating the menu: {}'.format(e))
+
+        # reply with the menu
         if len(menus) > 0:
-            # send the menu in a reply
             response = self.slack_client.api_call('chat.postMessage', channel=data['channel'], text='*LUNCH!*',
                                                   attachments=create_attachments(menus),
                                                   username='komidabot', icon_emoji=':fork_and_knife:')
+        # or send a final message that no menu could be found
         else:
+            fail_gifs = ['https://giphy.com/gifs/monkey-laptop-baboon-xTiTnJ3BooiDs8dL7W',
+                         'https://giphy.com/gifs/office-space-jBBRs81dGWHIY',
+                         'https://giphy.com/gifs/computer-Zw133sEVc0WXK',
+                         'https://giphy.com/gifs/computer-D8kdCAJIoSQ6I',
+                         'https://giphy.com/gifs/richard-ayoade-it-crowd-maurice-moss-dbtDDSvWErdf2']
             response = self.slack_client.api_call('chat.postMessage', channel=data['channel'],
-                                                  text="I couldn't find a menu for campus {} on {}.".format(
-                                                      ', '.join(campuses).upper(), ', '.join([d.strftime('%a %d %B') for d in dates])),
+                                                  text="_COMPUTER SAYS NO._ I'm sorry, no menu has been found.\n{}".format(random.choice(fail_gifs)),
                                                   username='komidabot', icon_emoji=':fork_and_knife:')
 
         # check if the menu was correctly sent
@@ -129,4 +153,4 @@ class KomidaPlugin(Plugin):
 
     def register_jobs(self):
         # schedule an update of the menu every hour
-        self.jobs.append(KomidaUpdate(3600))
+        self.jobs.append(self.update)
