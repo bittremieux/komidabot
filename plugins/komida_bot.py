@@ -88,7 +88,8 @@ class KomidaPlugin(Plugin):
         if data.get('username') == 'komidabot' or data.get('subtype') == 'bot_message':
             return
         # ignore messages on public channels that don't contain the trigger word (lunch)
-        if data.get('channel').startswith('C') and re.search('l+u+n+c+h+', text) is None:
+        if data.get('channel').startswith('C') and not\
+                ('komidabot' in text or re.search('^l+u+n+c+h+!+$', text) is not None):
             return
 
         # parse the campus(es) and date(s) from the request
