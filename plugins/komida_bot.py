@@ -86,11 +86,14 @@ class KomidaPlugin(Plugin):
 
         Returns:
         """
-        text = data['text'].lower()
-
         # ignore messages by the bot itself or from other bots
-        if data.get('username') == 'komidabot' or data.get('subtype') == 'bot_message':
+        if data.get('username') == 'komidabot' or 'bot' in data.get('subtype'):
             return
+        # ignore messages that don't contain the text as we expect it to
+        if 'text' not in data:
+            return
+        else:
+            text = data['text'].lower()
         # ignore messages on public channels that don't contain the trigger word (lunch)
         if data.get('channel').startswith('C') and not\
                 ('komidabot' in text or re.search('^l+u+n+c+h+!+$', text) is not None):
