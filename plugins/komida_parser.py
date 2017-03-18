@@ -14,6 +14,10 @@ import requests
 from rtmbot.core import Job
 
 
+# disable low-level pdfminer logging
+logging.getLogger('pdfminer').setLevel(logging.WARNING)
+
+
 def get_menu_url(campus):
     """
     Parse the komida 'Weekmenu' page to find the url to the latest pdf menu for komida Middelheim.
