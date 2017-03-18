@@ -90,7 +90,7 @@ class KomidaPlugin(Plugin):
         Returns:
         """
         # ignore messages by the bot itself or from other bots
-        if data.get('username') == 'komidabot' or 'bot' in data.get('subtype'):
+        if data.get('username') == 'komidabot' or 'bot' in data.get('subtype', []):
             return
         # ignore messages that don't contain the text as we expect it to
         if 'text' not in data:
