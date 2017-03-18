@@ -74,8 +74,11 @@ def format_menu(menu):
 
 class KomidaPlugin(Plugin):
 
-    # job to update the menus
-    update = KomidaUpdate(3600)
+    def __init__(self, name=None, slack_client=None, plugin_config=None):
+        super().__init__(name, slack_client, plugin_config)
+
+        # job to update the menus
+        self.update = KomidaUpdate(3600)
 
     def process_message(self, data):
         """
