@@ -12,6 +12,18 @@ from .komida_parser import KomidaUpdate
 
 
 def get_campus(text):
+    """
+    Check which campus is mentioned in the given text.
+
+    A campus can be denoted by its full name or by its three-letter acronym.
+
+    Args:
+        text: The text in which the occurrence of the campuses is checked.
+
+    Returns:
+        A list with acronyms for all UAntwerp campuses that were mentioned in the text. Defaults to CMI if no campus is
+        explicitly mentioned.
+    """
     campus_options = [('cde', ['cde', 'drie eiken']), ('cgb', ['cgb', 'groenenborger']),
                       ('cmi', ['cmi', 'middelheim']), ('cst', ['cst', 'stad', 'city'])]
 
@@ -20,6 +32,18 @@ def get_campus(text):
 
 
 def get_date(text):
+    """
+    Check which date is mentioned in the given text.
+
+    A date can be referred to by the day of week (Monday - Sunday) or by 'yesterday', 'today', and 'tomorrow'.
+
+    Args:
+        text: The text in which the occurrence of dates is checked.
+
+    Returns:
+        A list with `datetime` objects for all of the dates that were mentioned in the text. Defaults to today if no
+        date is explicitly mentioned.
+    """
     today = datetime.datetime.today().replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
     date_options = [('today', 0), ('tomorrow', 1), ('yesterday', -1), ('monday', 0 - today.weekday()),
                     ('tuesday', 1 - today.weekday()), ('wednesday', 2 - today.weekday()),
@@ -31,6 +55,18 @@ def get_date(text):
 
 
 def get_menu(campuses, dates):
+    """
+    Retrieve the menu on the given dates for the given campuses from the database.
+
+    Args:
+        campuses: The campuses for which the menu is retrieved.
+        dates: The dates for which the menu is retrieved.
+
+    Returns:
+        A nested dictionary with as keys the requested dates and campuses, and for each of these possibilities a
+        dictionary with as key the type of menu item and as values the menu content and the prices for students and
+        staff.
+    """
     conn = sqlite3.connect('menu.db')
     c = conn.cursor()
 
@@ -44,6 +80,15 @@ def get_menu(campuses, dates):
 
 
 def create_attachments(menu):
+    """
+    Format the given menu as a Slack attachment.
+
+    Args:
+        menu: A nested dictionary with as keys the dates and campuses and as values a menu items dictionary.
+
+    Returns:
+        A list of individual menus as a dictionary formatted to be used as a Slack attachment.
+    """
     campus_colors = {'cde': 'good', 'cgb': 'warning', 'cmi': 'danger', 'cst': '#439FE0'}
 
     attachments = []
@@ -55,6 +100,16 @@ def create_attachments(menu):
 
 
 def format_menu(menu):
+    """
+    Textually format a menu.
+
+    Args:
+        menu: A dictionary with as key the type of menu item and as values the menu content and the prices for students
+              and staff.
+
+    Returns:
+        The nicely format menu including emojis to indicate the menu types.
+    """
     message = []
     if 'soup' in menu:
         message.append(':tea: {} (€{:.2f} / €{:.2f})'.format(*menu['soup']))
@@ -75,6 +130,11 @@ def format_menu(menu):
 class KomidaPlugin(Plugin):
 
     def __init__(self, name=None, slack_client=None, plugin_config=None):
+        """
+        Initialize the KomidaBot Slack plugin.
+
+        Includes a timed job to update the menu every hour.
+        """
         super().__init__(name, slack_client, plugin_config)
 
         # job to update the menus
@@ -82,12 +142,17 @@ class KomidaPlugin(Plugin):
 
     def process_message(self, data):
         """
-        TODO
+        Check if the received Slack message is a menu request and answer if needed.
+
+        A menu can be requested on public channels to which the komidabot is invited by:
+        - Mentioning 'komidabot', optionally including a date and campus specification.
+        - Matching the '^l+u+n+c+h+!+$' regex to retrieve the default menu (today at campus Middelheim).
+        Or by messaging the komidabot directly.
+
+        A Slack response with the menu or a notification that the requested menu could not be found is sent.
 
         Args:
-            data:
-
-        Returns:
+            data: The Slack message.
         """
         # ignore messages by the bot itself or from other bots
         if data.get('username') == 'komidabot' or 'bot' in data.get('subtype', []):
@@ -145,6 +210,15 @@ class KomidaPlugin(Plugin):
             self.process_error(data['channel'], response['error'])
 
     def process_error(self, channel, reason):
+        """
+        Send a Slack message to notify the user of an occurred error.
+
+        If the notification cannot be sent an error is logged.
+
+        Args:
+            channel: To channel to which to send the notification.
+            reason: The error reason.
+        """
         # log the error
         logging.error('Failed to post to Slack: {}'.format(reason))
 
