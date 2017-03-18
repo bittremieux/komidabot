@@ -137,8 +137,9 @@ class KomidaPlugin(Plugin):
         """
         super().__init__(name, slack_client, plugin_config)
 
-        # job to update the menus
-        self.update = KomidaUpdate(3600)
+        # schedule an update of the menu every two hours
+        self.update = KomidaUpdate(7200)
+        self.jobs.append(self.update)
 
     def process_message(self, data):
         """
@@ -185,7 +186,9 @@ class KomidaPlugin(Plugin):
                 if not response['ok']:
                     self.process_error(data['channel'], response['error'])
 
+                # force a menu update and try to retrieve the requested menu again
                 self.update.run(self.slack_client)
+                menus = get_menu(campuses, dates)
             except Exception as e:
                 logging.exception('Problem while updating the menu: {}'.format(e))
 
@@ -230,7 +233,3 @@ class KomidaPlugin(Plugin):
         # check the error status of this message but don't try to resend
         if not response['ok']:
             logging.error('Failed to post to Slack: {}'.format(response['error']))
-
-    def register_jobs(self):
-        # schedule an update of the menu every hour
-        self.jobs.append(self.update)
