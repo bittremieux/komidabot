@@ -1,4 +1,5 @@
 import datetime
+import itertools
 import logging
 import os
 import re
@@ -126,25 +127,34 @@ def parse_pdf(f_pdf, campus):
             # repeat weekly menu items for each day of the week
             dates = [end_date - datetime.timedelta(end_date.weekday() - d) for d in range(5)]
 
-        # parse the selected day's menu items
-        for date in dates:
-            menu_item = pdf.pq('LTTextLineHorizontal:in_bbox("{},{},{},{}")'.format(*bb_menu)).text()
-            price = pdf.pq('LTTextLineHorizontal:in_bbox("{},{},{},{}")'.format(*bb_price)).text()
-            price = [float(p.replace(',', '.')) for p in re.findall('[\d,]+', price)]
+        # parse the menu item
+        menu_item = pdf.pq('LTTextLineHorizontal:in_bbox("{},{},{},{}")'.format(*bb_menu)).text()
+        price = pdf.pq('LTTextLineHorizontal:in_bbox("{},{},{},{}")'.format(*bb_price)).text()
+        price = [float(p.replace(',', '.')) for p in re.findall('[\d,]+', price)]
 
-            # split multiple (max. 2) items
-            items = re.split(' & | of ', menu_item)
-            if len(items) > 1 and len(price) > 2 and (menu_type == 'pasta' or (menu_type == 'grill' and campus == 'cst')):
-                if len(items) > 2:
-                    len_middle = len(menu_item) / 2
-                    cum_len = [len(sub_item) for sub_item in [' of '.join(items[:i]) for i in range(1, len(items) + 1)]]
-                    best_split_idx = min(enumerate(cum_len), key=lambda l: abs(l[1] - len_middle))[0] + 1
-                    items = [' of '.join(items[: best_split_idx]), ' of '.join(items[best_split_idx:])]
+        # verify that we parsed the student as well as the staff price
+        if len(price) < 2:
+            logging.warning('Error parsing the menu; unexpected price format: {} - {}'.format(menu_type, price))
+            continue
 
-                for i, item in enumerate(items, 1):
-                    menu[(date, campus, '{}{}'.format(menu_type, i))] = (item, *price[(i - 1) * 2: i * 2])
-            else:
-                menu[(date, campus, menu_type)] = (menu_item, *price)
+        # check if there are multiple menu options under the same category
+        num_items = len(price) / 2
+        # multiple options are only possible for selected pasta and grill menus
+        if num_items > 1 and (menu_type == 'pasta' or (menu_type == 'grill' and campus == 'cst')):
+            menu_items = re.split(' & | of ', menu_item)
+            # the split is correct if it results in 2 menu items, don't do anything in this case
+            # however, if there are more than 2 items one (or more) of the items was individually split as well
+            # try to merge split items using the heuristic that both menu items should be roughly equally long
+            if len(menu_items) > 2:
+                len_middle = len(menu_item) / 2
+                cum_len = [len(sub_item) for sub_item in [' of '.join(menu_items[:i]) for i in range(1, len(menu_items) + 1)]]
+                best_split_idx = min(enumerate(cum_len), key=lambda l: abs(l[1] - len_middle))[0] + 1
+                menu_items = [' of '.join(menu_items[: best_split_idx]), ' of '.join(menu_items[best_split_idx:])]
+        else:
+            menu_items = [menu_item]
+
+        for date, (i, item) in itertools.product(dates, enumerate(menu_items)):
+            menu[(date, campus, '{}{}'.format(menu_type, i + 1 if len(menu_items) > 1 else ''))] = (item, price[i * 2], price[i * 2 + 1])
 
     return menu
 
