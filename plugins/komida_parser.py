@@ -117,8 +117,13 @@ def parse_pdf(f_pdf, campus):
     # parse the menu's date
     logging.debug('Parse the menu date')
     week = pdf.pq('LTTextLineHorizontal:in_bbox("{},{},{},{}")'.format(*bbox['date'])).text()
-    end_date = dateparser.parse(re.split('-|tot|tem', week)[1], languages=['nl'])\
-        .replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
+    date_split_keys = ('-', 'tot', 'tem', 't/m')
+    end_date = dateparser.parse(re.split('|'.join(date_split_keys), week)[1], languages=['nl'])\
+        if any(date_split_key in week for date_split_key in date_split_keys) else None
+    # check whether the date was parsed successfully, otherwise fall back to the current week
+    if not end_date:
+        end_date = datetime.datetime.today() + datetime.timedelta(days=4 - datetime.datetime.today().weekday())
+    end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
 
     # parse the menu items
     logging.debug('Parse the individual menu items and assign to specific dates')
