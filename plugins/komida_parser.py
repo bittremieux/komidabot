@@ -141,6 +141,10 @@ def parse_pdf(f_pdf, campus):
         price = pdf.pq('LTTextLineHorizontal:in_bbox("{},{},{},{}")'.format(*bb_price)).text()
         price = [float(p.replace(',', '.')) for p in re.findall('[\d,]+', price)]
 
+        # verify whether there is a menu for this day (in case of holidays, ...)
+        if not menu_item:
+            logging.debug('Empty {} menu item on {}'.format(menu_type, dates[0].strftime('%A %d %B')))
+            continue
         # verify that we parsed the student as well as the staff price
         if len(price) < 2:
             logging.warning('Error parsing the menu; unexpected price format: {} - {}'.format(menu_type, price))
